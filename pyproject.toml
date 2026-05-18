@@ -1,0 +1,26 @@
+[project]
+name = "pix-diff"
+version = "0.1.0"
+description = "Generate pixel difference visualization from video"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.4.5",
+    "opencv-python>=4.13.0.92",
+    "tqdm>=4.67.3",
+]
+
+[project.scripts]
+pix-diff = "pix_diff.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+]
+gpu = [
+    "cupy-cuda12x>=13.0",
+]
+all = [
+    "cupy-cuda12x>=13.0",
+]
