@@ -79,12 +79,35 @@ pix-diff input.mp4 --preset ultrafast
 pix-diff input.mp4 --output result.mp4
 ```
 
+### Pixel Comparison Metrics
+
+```bash
+# Per-channel metric (default): independent RGB differences
+pix-diff input.mp4
+
+# Euclidean distance: 3D spatial color difference
+pix-diff input.mp4 --metric euclidean --threshold 50
+
+# Luminance only: brightness changes (Rec.709)
+pix-diff input.mp4 --metric luminance --threshold 20
+
+# Weighted RGB: luminance-weighted differences
+pix-diff input.mp4 --metric weighted_rgb --threshold 15
+
+# CIE76 Delta E: perceptual color difference
+pix-diff input.mp4 --metric delta_e_cie76 --threshold 5.0
+
+# CIE94 Delta E: improved perceptual metric
+pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
+```
+
 ### CLI Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--mode` | Visualization mode: `grayscale` or `color` | `grayscale` |
 | `--threshold` | Noise threshold (0-255) | `0` |
+| `--metric` | Pixel comparison metric | `per_channel` |
 | `--after-image` | Enable motion trail after-images | disabled |
 | `--fade-mode` | Trail fade: `exponential` or `fixed` | `exponential` |
 | `--fade-duration` | Frames for fixed mode fade | `10` |
@@ -105,7 +128,7 @@ pix-diff input.mp4 --output result.mp4
    - Batcher groups frames into consecutive pairs
    - Compute thread processes diffs (GPU or CPU)
    - Writer thread encodes output video
-3. **Pixel Comparison**: Per-channel RGB absolute difference with configurable threshold
+3. **Pixel Comparison**: Configurable metric (per-channel, Euclidean, luminance, perceptual) with configurable threshold
 4. **Frame Generation**: k-1 diff frames compiled into output video at original FPS
 
 ## Architecture
@@ -139,6 +162,40 @@ After-images create persistent, fading visual echoes of pixel changes:
   - `replace`: Show only the most recent change per pixel
 
 Trails are composited over the original diff frame using `np.maximum()`, ensuring current changes remain visible while faded trails persist in the background.
+
+## Metrics
+
+### Per-Channel (Default)
+- Independent RGB channel absolute differences
+- Range: 0-255
+- Fastest, suitable for most use cases
+
+### Euclidean
+- 3D Euclidean distance in RGB color space
+- Range: 0-441.67
+- Accounts for combined channel differences
+
+### Luminance (Rec.709)
+- Brightness-only comparison using Rec.709 coefficients
+- Range: 0-255
+- Ignores chroma (color) changes
+
+### Weighted RGB
+- Luminance-weighted RGB differences
+- Range: 0-255
+- Balances color and brightness sensitivity
+
+### Delta E CIE76
+- Euclidean distance in CIELAB perceptual color space
+- Range: 0-100+ (perceptual units)
+- Human vision approximated
+
+### Delta E CIE94
+- Improved perceptual difference with parametric weights
+- Range: 0-100+ (perceptual units)
+- Industry standard for color accuracy
+
+**Note**: Perceptual metrics (`delta_e_*`) run on CPU. Other metrics support GPU acceleration.
 
 ## Development
 
