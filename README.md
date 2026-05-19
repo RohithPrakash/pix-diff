@@ -41,8 +41,10 @@ pix-diff input.mp4
 # Color mode: changed pixels keep original color, unchanged are black
 pix-diff input.mp4 --mode color
 
-# With noise threshold (ignore differences below 10)
+# With noise threshold (ignore differences below threshold)
+# Scale depends on metric: 0-255 for most, perceptual units for delta_e_* metrics
 pix-diff input.mp4 --threshold 10
+pix-diff input.mp4 --metric delta_e_cie76 --threshold 5.0
 ```
 
 ### Advanced Options
@@ -106,8 +108,8 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--mode` | Visualization mode: `grayscale` or `color` | `grayscale` |
-| `--threshold` | Noise threshold (0-255) | `0` |
-| `--metric` | Pixel comparison metric | `per_channel` |
+| `--threshold` | Noise threshold. Scale depends on metric: 0-255 for most, perceptual units for `delta_e_*` | `0` |
+| `--metric` | Pixel comparison metric: `per_channel`, `euclidean`, `luminance`, `weighted_rgb`, `delta_e_cie76`, `delta_e_cie94` | `per_channel` |
 | `--after-image` | Enable motion trail after-images | disabled |
 | `--fade-mode` | Trail fade: `exponential` or `fixed` | `exponential` |
 | `--fade-duration` | Frames for fixed mode fade | `10` |
