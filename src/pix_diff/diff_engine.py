@@ -2,6 +2,9 @@
 
 import numpy as np
 from enum import Enum
+from typing import Optional, Callable, Tuple
+
+from .metrics import per_channel_metric, get_metric_range
 
 
 class DiffMode(Enum):
@@ -11,7 +14,9 @@ class DiffMode(Enum):
 
 
 def compute_diff(frame1: np.ndarray, frame2: np.ndarray, 
-                 mode: DiffMode, threshold: int = 0) -> np.ndarray:
+                 mode: DiffMode, threshold: int = 0,
+                 metric_fn: Optional[Callable] = None,
+                 metric_name: str = 'per_channel') -> np.ndarray:
     """
     Compute pixel difference between two frames.
     
@@ -19,7 +24,9 @@ def compute_diff(frame1: np.ndarray, frame2: np.ndarray,
         frame1: Previous frame (H, W, 3) uint8 BGR
         frame2: Current frame (H, W, 3) uint8 BGR
         mode: DiffMode.GRAYSCALE or DiffMode.COLOR
-        threshold: Minimum per-channel difference to consider changed (0-255)
+        threshold: Minimum difference to consider changed (0-255)
+        metric_fn: Optional metric function. Defaults to per_channel_metric
+        metric_name: Name of metric for range normalization
     
     Returns:
         Diff frame (H, W, 3) uint8 BGR
@@ -28,47 +35,43 @@ def compute_diff(frame1: np.ndarray, frame2: np.ndarray,
     if frame1.shape != frame2.shape:
         raise ValueError(f"Frame shapes don't match: {frame1.shape} vs {frame2.shape}")
     
-    # Cast to int16 to avoid overflow on subtraction
-    f1 = frame1.astype(np.int16)
-    f2 = frame2.astype(np.int16)
+    # Use provided metric or default
+    if metric_fn is None:
+        metric_fn = per_channel_metric
     
-    # Per-channel absolute difference
-    diff = np.abs(f2 - f1)  # (H, W, 3) int16
-    
-    # Create mask: pixels changed if ANY channel exceeds threshold
-    changed_mask = np.any(diff > threshold, axis=2)  # (H, W) bool
+    # Get magnitude and changed mask from metric
+    magnitude, changed_mask = metric_fn(frame1, frame2, threshold)
     
     if mode == DiffMode.GRAYSCALE:
-        return _grayscale_mode(f2, diff, changed_mask)
+        return _grayscale_mode(magnitude, changed_mask, metric_name)
     elif mode == DiffMode.COLOR:
-        return _color_mode(f2, changed_mask)
+        return _color_mode(frame2, changed_mask)
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
 
-def _grayscale_mode(frame2: np.ndarray, diff: np.ndarray, 
-                    changed_mask: np.ndarray) -> np.ndarray:
+def _grayscale_mode(magnitude: np.ndarray, changed_mask: np.ndarray,
+                    metric_name: str = 'per_channel') -> np.ndarray:
     """
     Mode 1: Changed pixels are white with intensity based on difference.
     Greater difference = brighter white. Unchanged = black.
     
-    Uses per-channel average difference inverted: 
-    avg_diff=0 (no change) → black, avg_diff=255 (max change) → white
+    Intensity is normalized based on the metric's expected range.
     """
-    # Average per-channel difference
-    avg_diff = np.mean(diff, axis=2)  # (H, W) float64
+    # Get metric range for normalization
+    min_val, max_val = get_metric_range(metric_name)
     
-    # Invert: greater difference = brighter (255 - diff would make greater diff = darker)
-    # Actually user said: "greater difference lesser the brightness"
-    # So: max diff (255) → black (0), min diff (0) → white (255)
-    # intensity = 255 - avg_diff
-    intensity = 255 - avg_diff
+    # Normalize magnitude to 0-255 range
+    # intensity = 255 * (1 - magnitude / max_val)
+    # So max difference → black (0), min difference → white (255)
+    normalized = np.clip(magnitude / max_val, 0, 1)
+    intensity = 255 * (1 - normalized)
     
     # Apply mask: unchanged pixels stay black
     intensity = np.where(changed_mask, intensity, 0)
     
-    # Clip and convert to uint8
-    intensity = np.clip(intensity, 0, 255).astype(np.uint8)
+    # Convert to uint8
+    intensity = intensity.astype(np.uint8)
     
     # Stack to 3-channel grayscale (BGR)
     result = np.stack([intensity, intensity, intensity], axis=2)

@@ -10,6 +10,7 @@ from .compression import AutoVideoWriter
 from .diff_engine import DiffMode, compute_diff
 from .gpu_backend import to_gpu, to_cpu, estimate_batch_size
 from .after_image import AfterImageAccumulator
+from .metrics import MetricFn
 
 
 class PipelineError(Exception):
@@ -31,13 +32,17 @@ class VideoPipeline:
     def __init__(self, reader: VideoReader, writer: AutoVideoWriter,
                  mode: DiffMode, threshold: int = 0,
                  batch_size: Optional[int] = None, use_gpu: bool = False,
-                 after_image: Optional[AfterImageAccumulator] = None):
+                 after_image: Optional[AfterImageAccumulator] = None,
+                 metric_fn: Optional[MetricFn] = None,
+                 metric_name: str = 'per_channel'):
         self.reader = reader
         self.writer = writer
         self.mode = mode
         self.threshold = threshold
         self.use_gpu = use_gpu
         self.after_image = after_image
+        self.metric_fn = metric_fn
+        self.metric_name = metric_name
         
         # Auto-detect batch size if not specified
         # Note: after-images require sequential processing, so batch_size is 1
@@ -156,7 +161,11 @@ class VideoPipeline:
         """Process a batch on CPU."""
         results = []
         for prev, curr in zip(batch_prev, batch_curr):
-            diff = compute_diff(prev, curr, self.mode, self.threshold)
+            diff = compute_diff(
+                prev, curr, self.mode, self.threshold,
+                metric_fn=self.metric_fn,
+                metric_name=self.metric_name
+            )
             results.append(diff)
         return results
     
@@ -164,6 +173,11 @@ class VideoPipeline:
         """Process a batch on GPU."""
         import numpy as np
         from .gpu_backend import get_array_module
+        
+        # For perceptual metrics, fall back to CPU processing
+        # (Lab conversion on GPU is complex and can be optimized later)
+        if self.metric_name.startswith('delta_e'):
+            return self._process_batch_cpu(batch_prev, batch_curr)
         
         xp = get_array_module()
         
@@ -175,24 +189,57 @@ class VideoPipeline:
         prev_gpu = to_gpu(prev_stack)
         curr_gpu = to_gpu(curr_stack)
         
-        # Compute batch diff
-        f1 = prev_gpu.astype(xp.int16)
-        f2 = curr_gpu.astype(xp.int16)
-        diff = xp.abs(f2 - f1)  # (B, H, W, 3)
-        
-        # Threshold mask
-        changed_mask = xp.any(diff > self.threshold, axis=3)  # (B, H, W)
-        
-        # Process based on mode
-        if self.mode == DiffMode.GRAYSCALE:
-            avg_diff = xp.mean(diff, axis=3)  # (B, H, W)
-            intensity = 255 - avg_diff
-            intensity = xp.where(changed_mask, intensity, 0)
-            intensity = xp.clip(intensity, 0, 255).astype(xp.uint8)
-            result = xp.stack([intensity, intensity, intensity], axis=3)
-        else:  # COLOR mode
-            result = xp.where(changed_mask[:, :, :, xp.newaxis], curr_gpu, 0)
-            result = result.astype(xp.uint8)
+        # Compute batch diff based on metric
+        if self.metric_name == 'per_channel':
+            f1 = prev_gpu.astype(xp.int16)
+            f2 = curr_gpu.astype(xp.int16)
+            diff = xp.abs(f2 - f1)  # (B, H, W, 3)
+            changed_mask = xp.any(diff > self.threshold, axis=3)
+            
+            if self.mode == DiffMode.GRAYSCALE:
+                avg_diff = xp.mean(diff, axis=3)
+                intensity = 255 - avg_diff
+                intensity = xp.where(changed_mask, intensity, 0)
+                intensity = xp.clip(intensity, 0, 255).astype(xp.uint8)
+                result = xp.stack([intensity, intensity, intensity], axis=3)
+            else:  # COLOR mode
+                result = xp.where(changed_mask[:, :, :, xp.newaxis], curr_gpu, 0)
+                result = result.astype(xp.uint8)
+                
+        elif self.metric_name in ('euclidean', 'luminance', 'weighted_rgb'):
+            # For these metrics, compute on GPU
+            f1 = prev_gpu.astype(xp.float32)
+            f2 = curr_gpu.astype(xp.float32)
+            
+            if self.metric_name == 'euclidean':
+                diff = f2 - f1
+                magnitude = xp.sqrt(xp.sum(diff ** 2, axis=3))
+            elif self.metric_name == 'luminance':
+                coeffs = xp.array([0.2126, 0.7152, 0.0722])
+                y1 = xp.sum(f1 * coeffs, axis=3)
+                y2 = xp.sum(f2 * coeffs, axis=3)
+                magnitude = xp.abs(y2 - y1)
+            else:  # weighted_rgb
+                coeffs = xp.array([0.2126, 0.7152, 0.0722])
+                diff = xp.abs(f2 - f1)
+                weighted = diff * coeffs
+                magnitude = xp.sum(weighted, axis=3)
+            
+            changed_mask = magnitude > self.threshold
+            
+            if self.mode == DiffMode.GRAYSCALE:
+                max_val = 441.67 if self.metric_name == 'euclidean' else 255.0
+                normalized = xp.clip(magnitude / max_val, 0, 1)
+                intensity = 255 * (1 - normalized)
+                intensity = xp.where(changed_mask, intensity, 0)
+                intensity = intensity.astype(xp.uint8)
+                result = xp.stack([intensity, intensity, intensity], axis=3)
+            else:  # COLOR mode
+                result = xp.where(changed_mask[:, :, :, xp.newaxis], curr_gpu, 0)
+                result = result.astype(xp.uint8)
+        else:
+            # Unknown metric, fall back to CPU
+            return self._process_batch_cpu(batch_prev, batch_curr)
         
         # Transfer back to CPU
         result_cpu = to_cpu(result)

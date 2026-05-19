@@ -31,6 +31,13 @@ def parse_args():
     )
     
     parser.add_argument(
+        "--metric",
+        choices=["per_channel", "euclidean", "luminance", "weighted_rgb", "delta_e_cie76", "delta_e_cie94"],
+        default="per_channel",
+        help="Pixel comparison metric. Default: per_channel"
+    )
+    
+    parser.add_argument(
         "--output",
         "-o",
         help="Output video path. Default: INPUT_diff.mp4"

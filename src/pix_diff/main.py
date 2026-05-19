@@ -10,6 +10,7 @@ from .diff_engine import DiffMode
 from .gpu_backend import is_cuda_available
 from .pipeline import VideoPipeline
 from .after_image import AfterImageAccumulator, FadeMode, TrailMode
+from .metrics import get_metric, get_metric_range
 
 
 def generate_output_path(input_path: str) -> str:
@@ -29,10 +30,11 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                   fade_mode: str = 'exponential',
                   fade_duration: int = 10,
                   decay_factor: float = 0.85,
-                  trail_mode: str = 'max') -> str:
+                  trail_mode: str = 'max',
+                  metric: str = 'per_channel') -> str:
     """
     Process video and generate diff visualization.
-    
+
     Args:
         input_path: Path to input video
         mode: DiffMode.GRAYSCALE or DiffMode.COLOR
@@ -48,7 +50,9 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         fade_duration: Frames for fixed mode fade
         decay_factor: Multiplier for exponential decay
         trail_mode: max, additive, or replace
-    
+        metric: Pixel comparison metric (per_channel, euclidean, luminance,
+                weighted_rgb, delta_e_cie76, delta_e_cie94)
+
     Returns:
         Path to output video
     """
@@ -65,8 +69,13 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         print(f"Input: {input_path}")
         print(f"  {meta}")
         print(f"  Mode: {mode.value}, Threshold: {threshold}")
+        print(f"  Metric: {metric}")
         print(f"  GPU: {'enabled' if use_gpu else 'disabled'}")
         print(f"  After-images: {'enabled' if after_image else 'disabled'}")
+        
+        # Get metric function
+        metric_fn = get_metric(metric)
+        metric_range = get_metric_range(metric)
         
         # Setup after-image accumulator if enabled
         accumulator = None
@@ -99,7 +108,9 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                 threshold=threshold,
                 batch_size=batch_size,
                 use_gpu=use_gpu,
-                after_image=accumulator
+                after_image=accumulator,
+                metric_fn=metric_fn,
+                metric_name=metric
             )
             
             processed = pipeline.run()
@@ -132,7 +143,8 @@ def main():
             fade_mode=args.fade_mode,
             fade_duration=args.fade_duration,
             decay_factor=args.decay_factor,
-            trail_mode=args.trail_mode
+            trail_mode=args.trail_mode,
+            metric=args.metric
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

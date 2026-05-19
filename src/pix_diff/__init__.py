@@ -1,6 +1,6 @@
 """pix-diff: Generate pixel difference visualization from video."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .diff_engine import DiffMode, compute_diff
 from .video import VideoReader, VideoWriter
