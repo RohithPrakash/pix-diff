@@ -26,7 +26,10 @@ def get_array_module():
 def to_gpu(array: np.ndarray) -> np.ndarray:
     """Transfer array to GPU. No-op if CUDA unavailable."""
     if HAS_CUDA:
-        return cp.asarray(array)
+        try:
+            return cp.asarray(array)
+        except Exception:
+            return array
     return array
 
 

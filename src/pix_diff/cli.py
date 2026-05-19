@@ -50,6 +50,43 @@ def parse_args():
         help="GPU batch size (default: auto-detected from VRAM)"
     )
     
+    # After-images (motion trails)
+    parser.add_argument(
+        "--after-image",
+        action="store_true",
+        help="Enable after-image motion trails. Disabled by default."
+    )
+    
+    parser.add_argument(
+        "--fade-mode",
+        choices=["exponential", "fixed"],
+        default="exponential",
+        help="Trail fade mode: exponential (multiplicative decay) or fixed (linear fade). Default: exponential"
+    )
+    
+    parser.add_argument(
+        "--fade-duration",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Frames for fixed mode fade. Default: 10"
+    )
+    
+    parser.add_argument(
+        "--decay-factor",
+        type=float,
+        default=0.85,
+        metavar="F",
+        help="Exponential decay factor (0.0-1.0). Default: 0.85"
+    )
+    
+    parser.add_argument(
+        "--trail-mode",
+        choices=["max", "additive", "replace"],
+        default="max",
+        help="Trail accumulation: max (brightest), additive (cumulative), replace (latest). Default: max"
+    )
+    
     # Video compression
     parser.add_argument(
         "--codec",
@@ -86,6 +123,13 @@ def parse_args():
     # Validate batch size
     if args.batch_size is not None and args.batch_size < 1:
         parser.error("Batch size must be >= 1")
+    
+    # Validate after-image arguments
+    if args.fade_duration < 1:
+        parser.error("Fade duration must be >= 1")
+    
+    if not 0.0 <= args.decay_factor <= 1.0:
+        parser.error("Decay factor must be between 0.0 and 1.0")
     
     # Validate input exists
     if not Path(args.input).exists():

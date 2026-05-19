@@ -9,6 +9,7 @@ from .compression import AutoVideoWriter
 from .diff_engine import DiffMode
 from .gpu_backend import is_cuda_available
 from .pipeline import VideoPipeline
+from .after_image import AfterImageAccumulator, FadeMode, TrailMode
 
 
 def generate_output_path(input_path: str) -> str:
@@ -23,7 +24,12 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                   batch_size: Optional[int] = None,
                   codec: str = 'h264',
                   crf: int = 23,
-                  preset: str = 'medium') -> str:
+                  preset: str = 'medium',
+                  after_image: bool = False,
+                  fade_mode: str = 'exponential',
+                  fade_duration: int = 10,
+                  decay_factor: float = 0.85,
+                  trail_mode: str = 'max') -> str:
     """
     Process video and generate diff visualization.
     
@@ -37,6 +43,11 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         codec: Output codec (h264, h265, vp9, av1)
         crf: Compression quality (0-51, lower=better)
         preset: Encoding speed preset
+        after_image: Enable after-image motion trails
+        fade_mode: exponential or fixed
+        fade_duration: Frames for fixed mode fade
+        decay_factor: Multiplier for exponential decay
+        trail_mode: max, additive, or replace
     
     Returns:
         Path to output video
@@ -55,6 +66,20 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         print(f"  {meta}")
         print(f"  Mode: {mode.value}, Threshold: {threshold}")
         print(f"  GPU: {'enabled' if use_gpu else 'disabled'}")
+        print(f"  After-images: {'enabled' if after_image else 'disabled'}")
+        
+        # Setup after-image accumulator if enabled
+        accumulator = None
+        if after_image:
+            accumulator = AfterImageAccumulator(
+                frame_shape=(meta.height, meta.width, 3),
+                fade_mode=FadeMode(fade_mode),
+                fade_duration=fade_duration,
+                decay_factor=decay_factor,
+                trail_mode=TrailMode(trail_mode)
+            )
+            print(f"    Fade: {fade_mode}, duration={fade_duration}, "
+                  f"decay={decay_factor}, trail={trail_mode}")
         
         frame_count = meta.total_frames
         if frame_count < 2:
@@ -73,7 +98,8 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                 mode=mode,
                 threshold=threshold,
                 batch_size=batch_size,
-                use_gpu=use_gpu
+                use_gpu=use_gpu,
+                after_image=accumulator
             )
             
             processed = pipeline.run()
@@ -101,7 +127,12 @@ def main():
             batch_size=args.batch_size,
             codec=args.codec,
             crf=args.crf,
-            preset=args.preset
+            preset=args.preset,
+            after_image=args.after_image,
+            fade_mode=args.fade_mode,
+            fade_duration=args.fade_duration,
+            decay_factor=args.decay_factor,
+            trail_mode=args.trail_mode
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

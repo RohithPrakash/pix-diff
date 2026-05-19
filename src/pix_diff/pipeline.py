@@ -9,6 +9,7 @@ from .video import VideoReader
 from .compression import AutoVideoWriter
 from .diff_engine import DiffMode, compute_diff
 from .gpu_backend import to_gpu, to_cpu, estimate_batch_size
+from .after_image import AfterImageAccumulator
 
 
 class PipelineError(Exception):
@@ -29,21 +30,28 @@ class VideoPipeline:
     
     def __init__(self, reader: VideoReader, writer: AutoVideoWriter,
                  mode: DiffMode, threshold: int = 0,
-                 batch_size: Optional[int] = None, use_gpu: bool = False):
+                 batch_size: Optional[int] = None, use_gpu: bool = False,
+                 after_image: Optional[AfterImageAccumulator] = None):
         self.reader = reader
         self.writer = writer
         self.mode = mode
         self.threshold = threshold
         self.use_gpu = use_gpu
+        self.after_image = after_image
         
         # Auto-detect batch size if not specified
-        if batch_size is None:
+        # Note: after-images require sequential processing, so batch_size is 1
+        if after_image is not None:
+            self.batch_size = 1
+            print("After-images enabled: processing sequentially (batch_size=1)")
+        elif batch_size is None:
             frame_shape = (reader.metadata.height, reader.metadata.width, 3)
             self.batch_size = estimate_batch_size(frame_shape)
         else:
             self.batch_size = max(1, batch_size)
         
-        print(f"Batch size: {self.batch_size}")
+        if after_image is None:
+            print(f"Batch size: {self.batch_size}")
         
         # Queues for inter-stage communication (bounded to limit memory)
         self.frame_queue = queue.Queue(maxsize=8)
@@ -135,6 +143,9 @@ class VideoPipeline:
                     diff_frames = self._process_batch_cpu(batch_prev, batch_curr)
                 
                 for diff_frame in diff_frames:
+                    # Apply after-image trails if enabled
+                    if self.after_image is not None:
+                        diff_frame = self.after_image.process(diff_frame)
                     self.output_queue.put(diff_frame)
                     
         except Exception as e:
