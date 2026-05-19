@@ -34,7 +34,8 @@ class VideoPipeline:
                  batch_size: Optional[int] = None, use_gpu: bool = False,
                  after_image: Optional[AfterImageAccumulator] = None,
                  metric_fn: Optional[MetricFn] = None,
-                 metric_name: str = 'per_channel'):
+                 metric_name: str = 'per_channel',
+                 feather: int = 0):
         self.reader = reader
         self.writer = writer
         self.mode = mode
@@ -43,6 +44,7 @@ class VideoPipeline:
         self.after_image = after_image
         self.metric_fn = metric_fn
         self.metric_name = metric_name
+        self.feather = feather
         
         # Auto-detect batch size if not specified
         # Note: after-images require sequential processing, so batch_size is 1
@@ -164,7 +166,8 @@ class VideoPipeline:
             diff = compute_diff(
                 prev, curr, self.mode, self.threshold,
                 metric_fn=self.metric_fn,
-                metric_name=self.metric_name
+                metric_name=self.metric_name,
+                feather=self.feather
             )
             results.append(diff)
         return results

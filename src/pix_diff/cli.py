@@ -117,6 +117,15 @@ def parse_args():
         help="Encoding speed/quality tradeoff. Default: medium"
     )
     
+    # Edge smoothing
+    parser.add_argument(
+        "--feather",
+        type=int,
+        default=0,
+        metavar="R",
+        help="Gaussian blur radius for smoothing diff edges (0=off). Higher values create softer transitions. Default: 0"
+    )
+    
     args = parser.parse_args()
     
     # Validate threshold
@@ -137,6 +146,10 @@ def parse_args():
     
     if not 0.0 <= args.decay_factor <= 1.0:
         parser.error("Decay factor must be between 0.0 and 1.0")
+    
+    # Validate feather
+    if args.feather < 0:
+        parser.error("Feather radius must be >= 0")
     
     # Validate input exists
     if not Path(args.input).exists():

@@ -81,6 +81,22 @@ pix-diff input.mp4 --preset ultrafast
 pix-diff input.mp4 --output result.mp4
 ```
 
+### Edge Smoothing (Feathering)
+
+```bash
+# Default sharp edges
+pix-diff input.mp4
+
+# Soft 2-pixel feathered edges (removes jagged artifacts)
+pix-diff input.mp4 --feather 2
+
+# Strong smoothing for artistic effect
+pix-diff input.mp4 --feather 5 --after-image
+
+# Combine with color mode for soft glow effect
+pix-diff input.mp4 --feather 3 --mode color
+```
+
 ### Pixel Comparison Metrics
 
 ```bash
@@ -120,6 +136,7 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
 | `--codec` | Output codec: `h264`, `h265`, `vp9`, `av1` | `h264` |
 | `--crf` | Quality (0=lossless, 51=worst) | `23` |
 | `--preset` | Speed: `ultrafast`, `fast`, `medium`, `slow`, `veryslow` | `medium` |
+| `--feather` | Gaussian blur radius for smoothing edges (0=off) | `0` |
 | `--output` | Output file path | `INPUT_diff.mp4` |
 
 ## How It Works
@@ -198,6 +215,17 @@ Trails are composited over the original diff frame using `np.maximum()`, ensurin
 - Industry standard for color accuracy
 
 **Note**: Perceptual metrics (`delta_e_*`) run on CPU. Other metrics support GPU acceleration.
+
+## Edge Smoothing (Feathering)
+
+By default, changed pixels have sharp binary edges (either fully on or fully off). Feathering applies a Gaussian blur to the change mask, creating smooth transitions at boundaries:
+
+- **Radius 0** (default): Sharp binary edges
+- **Radius 1-2**: Subtle softening, removes pixelation artifacts
+- **Radius 3-5**: Strong smoothing, artistic glow effect
+- **Radius 5+**: Very soft, dreamlike transitions
+
+Feathering works with all modes (grayscale, color) and combines well with after-images for smooth motion trails.
 
 ## Development
 

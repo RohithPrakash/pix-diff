@@ -26,10 +26,11 @@ class TestGpuBackend:
     
     def test_to_gpu_no_cuda(self):
         """to_gpu should be no-op when CUDA unavailable."""
-        arr = np.array([1, 2, 3])
-        result = to_gpu(arr)
-        assert result is arr
-        assert isinstance(result, np.ndarray)
+        with patch('pix_diff.gpu_backend.HAS_CUDA', False):
+            arr = np.array([1, 2, 3])
+            result = to_gpu(arr)
+            assert result is arr
+            assert isinstance(result, np.ndarray)
     
     def test_to_cpu_no_cuda(self):
         """to_cpu should be no-op when CUDA unavailable."""

@@ -31,7 +31,8 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                   fade_duration: int = 10,
                   decay_factor: float = 0.85,
                   trail_mode: str = 'max',
-                  metric: str = 'per_channel') -> str:
+                  metric: str = 'per_channel',
+                  feather: int = 0) -> str:
     """
     Process video and generate diff visualization.
 
@@ -53,6 +54,8 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         metric: Pixel comparison metric (per_channel, euclidean, luminance,
                 weighted_rgb, delta_e_cie76, delta_e_cie94)
 
+        feather: Gaussian blur radius for smoothing edges (0=off)
+
     Returns:
         Path to output video
     """
@@ -70,6 +73,7 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         print(f"  {meta}")
         print(f"  Mode: {mode.value}, Threshold: {threshold}")
         print(f"  Metric: {metric}")
+        print(f"  Feather: {feather}px" if feather > 0 else "  Feather: off")
         print(f"  GPU: {'enabled' if use_gpu else 'disabled'}")
         print(f"  After-images: {'enabled' if after_image else 'disabled'}")
         
@@ -110,7 +114,8 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
                 use_gpu=use_gpu,
                 after_image=accumulator,
                 metric_fn=metric_fn,
-                metric_name=metric
+                metric_name=metric,
+                feather=feather
             )
             
             processed = pipeline.run()
@@ -144,7 +149,8 @@ def main():
             fade_duration=args.fade_duration,
             decay_factor=args.decay_factor,
             trail_mode=args.trail_mode,
-            metric=args.metric
+            metric=args.metric,
+            feather=args.feather
         )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
