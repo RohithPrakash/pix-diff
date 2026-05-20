@@ -44,8 +44,7 @@ Thumbs.db
 
 # Temporary test files
 test_input.mp4
-test_*_diff.mp4
-test_color_*.mp4
+test_*.mp4
 
 # uv
 uv.lock

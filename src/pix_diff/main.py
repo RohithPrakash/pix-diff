@@ -13,10 +13,70 @@ from .after_image import AfterImageAccumulator, FadeMode, TrailMode
 from .metrics import get_metric, get_metric_range
 
 
-def generate_output_path(input_path: str) -> str:
-    """Generate default output path: input_diff.mp4"""
+def generate_output_path(
+    input_path: str,
+    mode: str = 'grayscale',
+    metric: str = 'per_channel',
+    threshold: int = 0,
+    after_image: bool = False,
+    fade_mode: str = 'exponential',
+    trail_mode: str = 'max',
+    decay_factor: float = 0.85,
+    feather: int = 0,
+    codec: str = 'h264',
+    crf: int = 23,
+    preset: str = 'medium'
+) -> str:
+    """
+    Generate default output path with descriptive filename.
+    
+    Format: <original>_<mode>_<metric>_t<threshold>[_ai_<fade>_<trail>_d<decay>]_f<feather>_<codec>_crf<crf>_<preset>.mp4
+    
+    Examples:
+    - video_grayscale_per_channel_t0_f0_h264_crf23_medium.mp4
+    - video_color_euclidean_t50_ai_exp_max_d0.85_f2_h265_crf23_medium.mp4
+    - video_grayscale_delta_e_cie76_t5.0_f0_h264_crf23_medium.mp4
+    """
     path = Path(input_path)
-    return str(path.parent / f"{path.stem}_diff{path.suffix}")
+    
+    # Format threshold (perceptual metrics use decimal)
+    if metric.startswith('delta_e'):
+        threshold_str = f"t{threshold}.0"
+    else:
+        threshold_str = f"t{threshold}"
+    
+    # Abbreviate fade mode
+    fade_abbr = 'exp' if fade_mode == 'exponential' else 'fix'
+    
+    # Abbreviate trail mode
+    trail_abbr = {
+        'max': 'max',
+        'additive': 'add',
+        'replace': 'rep'
+    }.get(trail_mode, trail_mode)
+    
+    # Build filename parts
+    parts = [
+        path.stem,
+        mode,
+        metric,
+        threshold_str,
+    ]
+    
+    # Add after-image section if enabled
+    if after_image:
+        parts.append(f"ai_{fade_abbr}_{trail_abbr}_d{decay_factor}")
+    
+    # Add feather
+    parts.append(f"f{feather}")
+    
+    # Add compression settings
+    parts.append(f"{codec}_crf{crf}_{preset}")
+    
+    # Join and add extension
+    filename = "_".join(parts) + path.suffix
+    
+    return str(path.parent / filename)
 
 
 def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
@@ -40,7 +100,7 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         input_path: Path to input video
         mode: DiffMode.GRAYSCALE or DiffMode.COLOR
         threshold: Noise threshold (0-255)
-        output_path: Optional output path (default: input_diff.mp4)
+        output_path: Optional output path (auto-generated if None)
         use_gpu: Enable CUDA acceleration if available
         batch_size: GPU batch size (auto-detected if None)
         codec: Output codec (h264, h265, vp9, av1)
@@ -60,7 +120,20 @@ def process_video(input_path: str, mode: DiffMode, threshold: int = 0,
         Path to output video
     """
     if output_path is None:
-        output_path = generate_output_path(input_path)
+        output_path = generate_output_path(
+            input_path=input_path,
+            mode=mode.value,
+            metric=metric,
+            threshold=threshold,
+            after_image=after_image,
+            fade_mode=fade_mode,
+            trail_mode=trail_mode,
+            decay_factor=decay_factor,
+            feather=feather,
+            codec=codec,
+            crf=crf,
+            preset=preset
+        )
     
     # Check GPU availability
     if use_gpu and not is_cuda_available():

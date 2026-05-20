@@ -137,7 +137,7 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
 | `--crf` | Quality (0=lossless, 51=worst) | `23` |
 | `--preset` | Speed: `ultrafast`, `fast`, `medium`, `slow`, `veryslow` | `medium` |
 | `--feather` | Gaussian blur radius for smoothing edges (0=off) | `0` |
-| `--output` | Output file path | `INPUT_diff.mp4` |
+| `--output` | Output file path (auto-generated if omitted) | auto-generated |
 
 ## How It Works
 
@@ -157,6 +157,33 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
      ↓              ↓              ↓                  ↓
   Queue A       Queue B       Queue C          [FFmpeg/OpenCV]
 ```
+
+## Output Naming Convention
+
+When `--output` is not specified, the output filename is auto-generated based on all settings used:
+
+```
+<original>_<mode>_<metric>_t<threshold>[_ai_<fade>_<trail>_d<decay>]_f<feather>_<codec>_crf<crf>_<preset>.mp4
+```
+
+**Examples:**
+
+| Command | Output Filename |
+|---------|----------------|
+| `pix-diff video.mp4` | `video_grayscale_per_channel_t0_f0_h264_crf23_medium.mp4` |
+| `pix-diff video.mp4 --mode color --metric euclidean --threshold 50` | `video_color_euclidean_t50_f0_h264_crf23_medium.mp4` |
+| `pix-diff video.mp4 --after-image --feather 2 --codec h265` | `video_grayscale_per_channel_t0_ai_exp_max_d0.85_f2_h265_crf23_medium.mp4` |
+| `pix-diff video.mp4 --metric delta_e_cie76 --threshold 5 --after-image --fade-mode fixed --trail-mode additive --decay-factor 0.7 --feather 3 --codec h265 --crf 20 --preset fast` | `video_grayscale_delta_e_cie76_t5.0_ai_fix_add_d0.7_f3_h265_crf20_fast.mp4` |
+
+**Naming components:**
+- **mode**: `grayscale` or `color`
+- **metric**: metric name (e.g., `per_channel`, `delta_e_cie76`)
+- **threshold**: `t<int>` (or `t<float>.0` for perceptual metrics)
+- **after-image** (only if enabled): `ai_<fade>_<trail>_d<decay>`
+  - fade: `exp` (exponential) or `fix` (fixed)
+  - trail: `max`, `add` (additive), or `rep` (replace)
+- **feather**: `f<int>` (0 = off)
+- **compression**: `<codec>_crf<crf>_<preset>`
 
 ## Modes
 

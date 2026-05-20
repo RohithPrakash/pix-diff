@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument(
         "--output",
         "-o",
-        help="Output video path. Default: INPUT_diff.mp4"
+        help="Output video path. Default: auto-generated based on settings (e.g., INPUT_grayscale_per_channel_t0_f0_h264_crf23_medium.mp4)"
     )
     
     # GPU acceleration
