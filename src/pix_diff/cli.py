@@ -126,6 +126,23 @@ def parse_args():
         help="Gaussian blur radius for smoothing diff edges (0=off). Higher values create softer transitions. Default: 0"
     )
     
+    # Transition effect
+    parser.add_argument(
+        "--transition",
+        type=float,
+        default=0.0,
+        metavar="SEC",
+        help="Duration of smooth transition from original to diff in seconds (0=disabled). Default: 0"
+    )
+    
+    parser.add_argument(
+        "--transition-delay",
+        type=float,
+        default=0.0,
+        metavar="SEC",
+        help="Seconds to show original video before transition starts. Default: 0"
+    )
+    
     args = parser.parse_args()
     
     # Validate threshold
@@ -150,6 +167,12 @@ def parse_args():
     # Validate feather
     if args.feather < 0:
         parser.error("Feather radius must be >= 0")
+    
+    # Validate transition arguments
+    if args.transition < 0:
+        parser.error("Transition duration must be >= 0")
+    if args.transition_delay < 0:
+        parser.error("Transition delay must be >= 0")
     
     # Validate input exists
     if not Path(args.input).exists():

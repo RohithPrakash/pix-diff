@@ -11,6 +11,7 @@ from .diff_engine import DiffMode, compute_diff
 from .gpu_backend import to_gpu, to_cpu, estimate_batch_size
 from .after_image import AfterImageAccumulator
 from .metrics import MetricFn
+from .transition import TransitionController
 
 
 class PipelineError(Exception):
@@ -35,7 +36,8 @@ class VideoPipeline:
                  after_image: Optional[AfterImageAccumulator] = None,
                  metric_fn: Optional[MetricFn] = None,
                  metric_name: str = 'per_channel',
-                 feather: int = 0):
+                 feather: int = 0,
+                 transition: Optional[TransitionController] = None):
         self.reader = reader
         self.writer = writer
         self.mode = mode
@@ -45,6 +47,7 @@ class VideoPipeline:
         self.metric_fn = metric_fn
         self.metric_name = metric_name
         self.feather = feather
+        self.transition = transition
         
         # Auto-detect batch size if not specified
         # Note: after-images require sequential processing, so batch_size is 1
@@ -102,6 +105,7 @@ class VideoPipeline:
             
             batch_prev = []
             batch_curr = []
+            frame_idx = 0
             
             while True:
                 if self.error_event.is_set():
@@ -111,7 +115,7 @@ class VideoPipeline:
                 if curr_frame is None:
                     # Send remaining batch
                     if batch_prev:
-                        self.batch_queue.put((batch_prev, batch_curr))
+                        self.batch_queue.put((batch_prev, batch_curr, frame_idx))
                     self.batch_queue.put(None)
                     break
                 
@@ -119,9 +123,10 @@ class VideoPipeline:
                 batch_curr.append(curr_frame)
                 
                 if len(batch_prev) >= self.batch_size:
-                    self.batch_queue.put((batch_prev, batch_curr))
+                    self.batch_queue.put((batch_prev, batch_curr, frame_idx))
                     batch_prev = []
                     batch_curr = []
+                    frame_idx += self.batch_size
                 
                 prev_frame = curr_frame
                 
@@ -141,7 +146,7 @@ class VideoPipeline:
                     self.output_queue.put(None)
                     break
                 
-                batch_prev, batch_curr = batch
+                batch_prev, batch_curr, start_idx = batch
                 
                 # Process batch
                 if self.use_gpu:
@@ -149,11 +154,16 @@ class VideoPipeline:
                 else:
                     diff_frames = self._process_batch_cpu(batch_prev, batch_curr)
                 
-                for diff_frame in diff_frames:
+                for i, diff_frame in enumerate(diff_frames):
+                    frame_idx = start_idx + i
+                    original = batch_curr[i]
+                    
                     # Apply after-image trails if enabled
                     if self.after_image is not None:
                         diff_frame = self.after_image.process(diff_frame)
-                    self.output_queue.put(diff_frame)
+                    
+                    # Store tuple for potential transition blending
+                    self.output_queue.put((diff_frame, original, frame_idx))
                     
         except Exception as e:
             self._set_error(f"Compute error: {e}")
@@ -257,9 +267,17 @@ class VideoPipeline:
                 if self.error_event.is_set():
                     break
                 
-                frame = self.output_queue.get()
-                if frame is None:
+                item = self.output_queue.get()
+                if item is None:
                     break
+                
+                diff_frame, original, frame_idx = item
+                
+                # Apply transition blending if active
+                if self.transition is not None and self.transition.is_active():
+                    frame = self.transition.blend(original, diff_frame, frame_idx)
+                else:
+                    frame = diff_frame
                 
                 self.writer.write(frame)
                 self.processed_frames += 1

@@ -97,6 +97,19 @@ pix-diff input.mp4 --feather 5 --after-image
 pix-diff input.mp4 --feather 3 --mode color
 ```
 
+### Transition Effect
+
+```bash
+# Smooth 3-second transition starting immediately
+pix-diff input.mp4 --transition 3
+
+# Show original for 2 seconds, then transition over 5 seconds
+pix-diff input.mp4 --transition 5 --transition-delay 2
+
+# Combine with after-images for smooth intro
+pix-diff input.mp4 --transition 3 --transition-delay 1 --after-image
+```
+
 ### Pixel Comparison Metrics
 
 ```bash
@@ -137,6 +150,8 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
 | `--crf` | Quality (0=lossless, 51=worst) | `23` |
 | `--preset` | Speed: `ultrafast`, `fast`, `medium`, `slow`, `veryslow` | `medium` |
 | `--feather` | Gaussian blur radius for smoothing edges (0=off) | `0` |
+| `--transition` | Transition duration from original to diff in seconds (0=disabled) | `0` |
+| `--transition-delay` | Seconds to show original before transition starts | `0` |
 | `--output` | Output file path (auto-generated if omitted) | auto-generated |
 
 ## How It Works
@@ -163,7 +178,7 @@ pix-diff input.mp4 --metric delta_e_cie94 --threshold 2.0
 When `--output` is not specified, the output filename is auto-generated based on all settings used:
 
 ```
-<original>_<mode>_<metric>_t<threshold>[_ai_<fade>_<trail>_d<decay>]_f<feather>_<codec>_crf<crf>_<preset>.mp4
+<original>_<mode>_<metric>_t<threshold>[_ai_<fade>_<trail>_d<decay>]_f<feather>_<codec>_crf<crf>_<preset>[_tr<delay>s<duration>s].mp4
 ```
 
 **Examples:**
@@ -174,6 +189,7 @@ When `--output` is not specified, the output filename is auto-generated based on
 | `pix-diff video.mp4 --mode color --metric euclidean --threshold 50` | `video_color_euclidean_t50_f0_h264_crf23_medium.mp4` |
 | `pix-diff video.mp4 --after-image --feather 2 --codec h265` | `video_grayscale_per_channel_t0_ai_exp_max_d0.85_f2_h265_crf23_medium.mp4` |
 | `pix-diff video.mp4 --metric delta_e_cie76 --threshold 5 --after-image --fade-mode fixed --trail-mode additive --decay-factor 0.7 --feather 3 --codec h265 --crf 20 --preset fast` | `video_grayscale_delta_e_cie76_t5.0_ai_fix_add_d0.7_f3_h265_crf20_fast.mp4` |
+| `pix-diff video.mp4 --transition 3 --transition-delay 2` | `video_grayscale_per_channel_t0_f0_h264_crf23_medium_tr2s3s.mp4` |
 
 **Naming components:**
 - **mode**: `grayscale` or `color`
@@ -184,6 +200,7 @@ When `--output` is not specified, the output filename is auto-generated based on
   - trail: `max`, `add` (additive), or `rep` (replace)
 - **feather**: `f<int>` (0 = off)
 - **compression**: `<codec>_crf<crf>_<preset>`
+- **transition** (only if enabled): `tr<delay>s<duration>s`
 
 ## Modes
 
@@ -253,6 +270,43 @@ By default, changed pixels have sharp binary edges (either fully on or fully off
 - **Radius 5+**: Very soft, dreamlike transitions
 
 Feathering works with all modes (grayscale, color) and combines well with after-images for smooth motion trails.
+
+## Transition Effect
+
+The transition effect creates a smooth crossfade from the original video to the pixel difference visualization:
+
+```
+[Original] → [Transition] → [Diff]
+     ↓             ↓           ↓
+  Alpha=0    Alpha 0→1     Alpha=1
+```
+
+- **Original phase** (`--transition-delay`): Show original video footage
+- **Transition phase** (`--transition`): Smooth ease-in-out blend from original to diff
+- **Diff phase**: Show pure pixel difference visualization
+
+**Formula**: `output = original × (1-α) + diff × α`
+
+Where α follows a smoothstep curve for natural acceleration/deceleration.
+
+**Features:**
+- Original audio is preserved and copied to output
+- Works with all modes, metrics, and effects
+- After-image trails fade in naturally as α increases
+- Configurable delay and duration
+
+**Examples:**
+
+```bash
+# 3-second smooth transition starting immediately
+pix-diff input.mp4 --transition 3
+
+# Show original for 2 seconds, then transition over 5 seconds
+pix-diff input.mp4 --transition 5 --transition-delay 2
+
+# Combine with after-images for smooth intro
+pix-diff input.mp4 --transition 3 --after-image --feather 2
+```
 
 ## Development
 
