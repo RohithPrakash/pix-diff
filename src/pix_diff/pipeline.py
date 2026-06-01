@@ -50,18 +50,15 @@ class VideoPipeline:
         self.transition = transition
         
         # Auto-detect batch size if not specified
-        # Note: after-images require sequential processing, so batch_size is 1
-        if after_image is not None:
-            self.batch_size = 1
-            print("After-images enabled: processing sequentially (batch_size=1)")
-        elif batch_size is None:
+        if batch_size is None:
             frame_shape = (reader.metadata.height, reader.metadata.width, 3)
             self.batch_size = estimate_batch_size(frame_shape)
         else:
             self.batch_size = max(1, batch_size)
-        
-        if after_image is None:
-            print(f"Batch size: {self.batch_size}")
+
+        print(f"Batch size: {self.batch_size}")
+        if after_image is not None:
+            print("After-images enabled: trails applied sequentially")
         
         # Queues for inter-stage communication (bounded to limit memory)
         self.frame_queue = queue.Queue(maxsize=8)

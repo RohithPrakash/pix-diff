@@ -226,6 +226,8 @@ After-images create persistent, fading visual echoes of pixel changes:
 
 Trails are composited over the original diff frame using `np.maximum()`, ensuring current changes remain visible while faded trails persist in the background.
 
+After-images are fully compatible with GPU batch processing — diff frames are computed in batches while trails are applied sequentially, preserving performance and visual correctness.
+
 ## Metrics
 
 ### Per-Channel (Default)
