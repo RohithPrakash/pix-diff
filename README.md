@@ -331,4 +331,7 @@ pytest --cov=pix_diff
 
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE).
+
+Third-party dependencies keep their own licenses: NumPy (BSD-3-Clause),
+opencv-python (Apache-2.0), tqdm (MPL-2.0 AND MIT), CuPy (MIT).
