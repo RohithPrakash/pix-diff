@@ -23,19 +23,19 @@ visualization.
   <tr>
     <td align="center" width="33%">
       <video
-        src="https://github.com/user-attachments/assets/b05209c1-481b-4583-8da1-fc67400e6488"
+        src="https://github.com/user-attachments/assets/a1cf4c15-be17-457d-9ab6-d50a7ea5661f"
         poster="demo/posters/birds.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
     <td align="center" width="33%">
       <video
-        src="https://github.com/user-attachments/assets/a1cf4c15-be17-457d-9ab6-d50a7ea5661f"
+        src="https://github.com/user-attachments/assets/f4992373-6cee-419b-b6d9-a2f76bc9cc57"
         poster="demo/posters/bird-2.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
     <td align="center" width="33%">
       <video
-        src="https://github.com/user-attachments/assets/f4992373-6cee-419b-b6d9-a2f76bc9cc57"
+        src="https://github.com/user-attachments/assets/b05209c1-481b-4583-8da1-fc67400e6488
         poster="demo/posters/whale-1.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
