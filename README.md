@@ -35,7 +35,7 @@ visualization.
     </td>
     <td align="center" width="33%">
       <video
-        src="https://github.com/user-attachments/assets/b05209c1-481b-4583-8da1-fc67400e6488
+        src="https://github.com/user-attachments/assets/b05209c1-481b-4583-8da1-fc67400e6488"
         poster="demo/posters/whale-1.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
