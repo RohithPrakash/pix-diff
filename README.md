@@ -23,19 +23,19 @@ visualization.
   <tr>
     <td align="center" width="33%">
       <video
-        src="demo/birds_color_luminance_t25_ai_exp_max_d0.85_f0_h264_crf23_medium_tr1s1s.mp4"
+        src="demo/birds.mp4"
         poster="demo/posters/birds.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
     <td align="center" width="33%">
       <video
-        src="demo/bird-2_grayscale_luminance_t20_ai_exp_max_d0.85_f0_h264_crf23_medium_tr2s2s.mp4"
+        src="demo/bird-2.mp4"
         poster="demo/posters/bird-2.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
     <td align="center" width="33%">
       <video
-        src="demo/whale-1_color_luminance_t25_f0_h264_crf23_medium_tr3s3s.mp4"
+        src="demo/whale-1.mp4"
         poster="demo/posters/whale-1.jpg"
         width="240" controls muted loop playsinline></video>
     </td>
@@ -43,19 +43,19 @@ visualization.
   <tr>
     <td align="center">
       <sub>
-        <a href="demo/birds_color_luminance_t25_ai_exp_max_d0.85_f0_h264_crf23_medium_tr1s1s.mp4"><b>birds</b></a><br />
+        <a href="demo/birds.mp4"><b>birds</b></a><br />
         color mode &middot; luminance &middot; after-images
       </sub>
     </td>
     <td align="center">
       <sub>
-        <a href="demo/bird-2_grayscale_luminance_t20_ai_exp_max_d0.85_f0_h264_crf23_medium_tr2s2s.mp4"><b>bird-2</b></a><br />
+        <a href="demo/bird-2.mp4"><b>bird-2</b></a><br />
         grayscale mode &middot; luminance &middot; after-images
       </sub>
     </td>
     <td align="center">
       <sub>
-        <a href="demo/whale-1_color_luminance_t25_f0_h264_crf23_medium_tr3s3s.mp4"><b>whale-1</b></a><br />
+        <a href="demo/whale-1.mp4"><b>whale-1</b></a><br />
         color mode &middot; luminance &middot; no trails
       </sub>
     </td>
@@ -74,6 +74,9 @@ pix-diff bird-2.mp4 --metric luminance --threshold 20 \
 pix-diff whale-1.mp4 --mode color --metric luminance --threshold 25 \
   --transition 3 --transition-delay 3
 ```
+
+> The clips above were downscaled to 1080p and re-encoded to stay under GitHub's
+> file-size limit for inline playback. The commands produce full-resolution output.
 
 ## Installation
 
